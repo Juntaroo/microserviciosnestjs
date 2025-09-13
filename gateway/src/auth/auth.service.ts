@@ -1,36 +1,30 @@
-/*import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class AuthService {}
-*/
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ClientsService } from '../clients/clients.service';
+import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private clients: ClientsService,
-    private jwtService: JwtService
+    @Inject('MS_USER') private readonly userClient: ClientProxy,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async login(email: string, password: string) {
+  async validateUser(email: string, password: string) {
+    // Llamamos al microservicio de usuarios
     const user = await firstValueFrom(
-      this.clients.usersClient.send({ cmd: 'validate-user' }, { email, password })
+      this.userClient.send('validateUser', { email, password })
     );
 
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
-
-    return { access_token: token };
+    return user; // Retornamos el usuario validado
   }
 
-  async validateUserById(userId: number) {
-    return firstValueFrom(
-      this.clients.usersClient.send({ cmd: 'get-user-by-id' }, userId)
-    );
+  async login(user: any) {
+    const payload = { sub: user.id, email: user.email };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 }
