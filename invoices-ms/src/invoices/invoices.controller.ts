@@ -34,36 +34,3 @@ export class InvoicesController {
   }
 }
 
-
-
-
-/*
-import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
-import { InvoicesService } from './invoices.service';
-
-@Controller()
-export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
-
-  @MessagePattern({ cmd: 'create-invoice' })
-  createInvoice(@Payload() data: {
-    userId: number;
-    items: { productId: number; quantity: number; unitPrice: number }[];
-  }) {
-    return this.invoicesService.createInvoice(data);
-  }
-
-  @MessagePattern({ cmd: 'get-invoices' })
-  findAll() {
-    return this.invoicesService.findAll();
-  }
-
-  @MessagePattern({ cmd: 'get-invoice' })
-  findOne(@Payload() id: number) {
-    return this.invoicesService.findOne(id);
-  }
-}
-*/
-
-

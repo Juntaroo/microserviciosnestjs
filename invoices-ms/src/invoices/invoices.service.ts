@@ -1,145 +1,103 @@
 import { Injectable } from '@nestjs/common';
-import { CreateInvoiceDto } from './dto/create-invoice.dto';
-import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RpcException } from '@nestjs/microservices';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private _prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(createInvoiceDto: CreateInvoiceDto) {
-    return this._prisma.invoice.create({
-      data: {
-        numero: createInvoiceDto.numero,
-        userId: createInvoiceDto.userId,
-        total: createInvoiceDto.total,
-        items: {
-          create: createInvoiceDto.items,
+  async create(data: CreateInvoiceDto) {
+    try {
+      const factura = await this.prisma.invoice.create({
+        data: {
+          numero: data.numero,
+          userId: data.userId,
+          total: data.total,
+          items: { create: [...data.items] },
         },
-      },
-      include: { items: true },
-    });
-  }
-
-  findAll() {
-    return this._prisma.invoice.findMany({
-      include: { items: true },
-    });
-  }
-
-  async findOne(id: string) {
-    const invoice = await this._prisma.invoice.findUnique({
-      where: { id },
-      include: { items: true },
-    });
-
-    if (!invoice) {
-      throw new RpcException({ status: 404, message: `Factura con ID ${id} no encontrada` });
+        include: { items: true },
+      });
+      return factura;
+    } catch (err) {
+      throw new RpcException({ status: 400, message: 'Error al crear la factura' });
     }
-
-    return invoice;
   }
 
-  async update(payload: { id: string; data: UpdateInvoiceDto }) {
-    const { id, data } = payload;
-
-    // Validar que la factura exista
-    const invoiceExistente = await this._prisma.invoice.findUnique({ where: { id } });
-
-    if (!invoiceExistente) {
-      throw new RpcException({ status: 404, message: `Factura con ID ${id} no encontrada` });
-    }
-
-    // Eliminar ítems previos
-    await this._prisma.item.deleteMany({ where: { invoiceId: id } });
-
-    // Actualizamos la factura
-    await this._prisma.invoice.update({
-      where: { id },
-      data: {
-        numero: data.numero,
-        userId: data.userId,
-        total: data.total,
-      },
-    });
-
-    // Insertamos los nuevos items
-    if (data.items?.length) {
-      for (const item of data.items) {
-        await this._prisma.item.create({
-          data: {
-            descripcion: item.descripcion,
-            quantity : item.quantity,
-            unitPrice: item.unitPrice,
-            invoiceId: id,
-          },
-        });
-      }
-    }
-
-    // Retornamos la factura actualizada con los nuevos items
-    return this._prisma.invoice.findUnique({
-      where: { id },
-      include: { items: true },
-    });
-  }
-
-  async remove(id: string) {
-    const invoice = await this._prisma.invoice.findUnique({ where: { id } });
-
-    if (!invoice) {
-      throw new RpcException({ status: 404, message: `Factura con ID ${id} no encontrada` });
-    }
-
-    await this._prisma.item.deleteMany({ where: { invoiceId: id } });
-    return this._prisma.invoice.delete({ where: { id } });
-  }
-}
-
-
-/*
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-
-@Injectable()
-export class InvoicesService {
-  constructor(private prisma: PrismaService) {}
-
-  async createInvoice(data: {
-    userId: number;
-    items: { productId: number; quantity: number; unitPrice: number }[];
-  }) {
-    const total = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-
-    return this.prisma.invoice.create({
-      data: {
-        userId: data.userId,
-        total,
-        items: {
-          create: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-          })),
-        },
-      },
-      include: { items: true },
-    });
-  }
-
-  findAll() {
+  async findAll() {
     return this.prisma.invoice.findMany({
       include: { items: true },
     });
   }
 
-  findOne(id: number) {
-    return this.prisma.invoice.findUnique({
-      where: { id },
+  async findOne(invoiceId: string) {
+    const factura = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
       include: { items: true },
     });
+
+    if (!factura) {
+      throw new RpcException({
+        status: 404,
+        message: `No existe una factura con ID: ${invoiceId}`,
+      });
+    }
+
+    return factura;
+  }
+
+  async update(payload: { id: string; data: UpdateInvoiceDto }) {
+      const { id: invoiceId, data: dto } = payload;
+
+      const existente = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+      if (!existente) {
+        throw new RpcException({
+          status: 404,
+          message: `No se encontró la factura con ID: ${invoiceId}`,
+        });
+      }
+
+      await this.prisma.item.deleteMany({ where: { invoiceId } });
+
+      await this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+        numero: dto.numero,
+        total: dto.total,
+        userId: dto.userId,
+      },
+      });
+
+      if (dto.items?.length) {
+        await this.prisma.item.createMany({
+          data: dto.items.map((it) => ({
+            descripcion: it.descripcion,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            invoiceId,
+          })),
+        });
+      }
+
+      return this.prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { items: true },
+      });
+  }
+
+  async remove(invoiceId: string) {
+    const existente = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+    if (!existente) {
+      throw new RpcException({
+        status: 404,
+        message: `Factura con ID ${invoiceId} no encontrada`,
+      });
+    }
+
+    await this.prisma.item.deleteMany({ where: { invoiceId } });
+    return this.prisma.invoice.delete({ where: { id: invoiceId } });
   }
 }
-*/
-

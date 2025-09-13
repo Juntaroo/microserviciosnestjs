@@ -3,15 +3,13 @@ import * as joi from 'joi';
 
 dotenv.config();
 
-interface EnvVars {//Estoy definiendo en envars para las variables de entorno
+interface EnvVars {
     DB_PORT: number;
     DB_HOST: string;
     DB_URL: string;
     HOST: string;
     PORT: number;
 }
-
-//Les doy el formato JOI
 const envsSchema = joi.object({
     DB_PORT: joi.number().required(),
     DB_HOST: joi.string().required(),
@@ -21,14 +19,12 @@ const envsSchema = joi.object({
 }).unknown(true);
 
 
-const { error, value } = envsSchema.validate(process.env);//Lo que este en el env tendra este esquema
+const { error, value } = envsSchema.validate(process.env);
 
-if (error) throw new Error(`Cofig validation error: ${error.message}`);//En caso de error que mande un mensaje
+if (error) throw new Error(`Cofig validation error: ${error.message}`);
 
-//Termino de establecer el valor
 const envVars: EnvVars = value;
 
-//Aca se lo doy a una variable para poder utilizarlo globalmente
 export const envs = {
     DB_PORT: envVars.DB_PORT,
     DB_HOST: envVars.DB_HOST,

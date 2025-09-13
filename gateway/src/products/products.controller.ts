@@ -1,83 +1,80 @@
-import { Body, Controller, Delete, Get, Inject, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
-import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { catchError } from 'rxjs';
-import { PaginationDto } from 'src/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  HttpException,
+  Inject,
+} from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { catchError, throwError } from 'rxjs';
 
-@Controller('products')
+@Controller('productos')
 export class ProductsController {
-    constructor(
-        @Inject('products-ms') private readonly productsClient: ClientProxy
-    ) { }
-
-    @Post()
-    createProduct(@Body() data) {
-        return this.productsClient.send('create_product', data).pipe(
-            catchError((error) => {
-                throw new RpcException(error); // Lanza la excepción para que el cliente la maneje
-            })
-        );
-    }
-
-    @Get()
-    findAllProducts(@Query() PaginationDto: PaginationDto)/* : Observable<any> */ {
-        return this.productsClient.send('find_all_products', PaginationDto);
-    }
-
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.productsClient.send('find_one_product', id).pipe(
-            catchError((error) => {
-                throw new RpcException(error); // Lanza la excepción para que el cliente la maneje
-            })
-        );
-    }
-
-    @Delete(':id')
-    removeProducto(@Param('id', ParseIntPipe) id: number) {
-        return this.productsClient.send('remove_product', id).pipe(
-            catchError((error) => {
-                throw new RpcException(error); // Lanza la excepción para que el cliente la maneje
-            })
-        );
-    }
-
-    @Patch(':id')
-    patchProducto(@Param('id', ParseIntPipe) id: number, @Body() updateProductoDto) {
-        return this.productsClient.send('update_product', { id, updateProductoDto }).pipe(
-            catchError((error) => {
-                throw new RpcException(error); // Lanza la excepción para que el cliente la maneje
-            })
-        );
-    }
-}
-
-
-
-/*
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { ClientsService } from '../clients/clients.service';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
-import { firstValueFrom } from 'rxjs';
-
-@Controller('products')
-@UseGuards(JwtAuthGuard)
-export class ProductsController {
-  constructor(private clients: ClientsService) {}
-
-  @Get()
-  async getAll() {
-    return firstValueFrom(
-      this.clients.productsClient.send({ cmd: 'get-products' }, {})
-    );
-  }
+  constructor(
+    @Inject('MS_PRODUCTS') private readonly productsClient: ClientProxy,
+  ) {}
 
   @Post()
-  async create(@Body() body) {
-    return firstValueFrom(
-      this.clients.productsClient.send({ cmd: 'create-product' }, body)
+  createProduct(@Body() dto: any) {
+    return this.productsClient.send('createProduct', dto).pipe(
+      catchError((err) =>
+        throwError(
+          () =>
+            new HttpException(err?.message ?? 'Error al crear producto', err?.status ?? 500),
+        ),
+      ),
+    );
+  }
+
+  @Get()
+  findAllProducts() {
+    return this.productsClient.send('findAllProducts', {}).pipe(
+      catchError((err) =>
+        throwError(
+          () =>
+            new HttpException(err?.message ?? 'Error al listar productos', err?.status ?? 500),
+        ),
+      ),
+    );
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.productsClient.send('findOneProduct', id).pipe(
+      catchError((err) =>
+        throwError(
+          () =>
+            new HttpException(err?.message ?? `Producto ${id} no encontrado`, err?.status ?? 404),
+        ),
+      ),
+    );
+  }
+
+  @Patch(':id')
+  patchProducto(@Param('id') id: string, @Body() dto: any) {
+    return this.productsClient.send('updateProduct', { id, dto }).pipe(
+      catchError((err) =>
+        throwError(
+          () =>
+            new HttpException(err?.message ?? 'Error al actualizar producto', err?.status ?? 500),
+        ),
+      ),
+    );
+  }
+
+  @Delete(':id')
+  removeProduct(@Param('id') id: string) {
+    return this.productsClient.send('removeProduct', id).pipe(
+      catchError((err) =>
+        throwError(
+          () =>
+            new HttpException(err?.message ?? 'Error al eliminar producto', err?.status ?? 500),
+        ),
+      ),
     );
   }
 }
-*/
-
-

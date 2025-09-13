@@ -19,20 +19,3 @@ export class CreateInvoiceDto {
     items: CreateItemDto[];
     
 }
-
-/*export class CreateInvoiceDto {
-    @IsInt()
-    numero: number;
-
-    @IsString()
-    cliente: string;
-
-    @IsNumber()
-    total: number;
-
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CreateItemDto)
-    items: CreateItemDto[];
-    
-}*/

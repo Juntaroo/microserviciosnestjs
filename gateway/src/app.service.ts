@@ -7,18 +7,18 @@ export class AppService implements OnModuleInit {
   private readonly logger = new Logger(AppService.name);
 
   constructor(
-    @Inject('MS_USER') private readonly userClient: ClientProxy,
+    @Inject('MS_USERS') private readonly userClient: ClientProxy,
     @Inject('MS_PRODUCTS') private readonly productsClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
     try {
       await this.userClient.connect();
-      this.logger.log('🟢 Conectado con el microservicio de usuarios');
+      this.logger.log('Users Microservice connected');
       await this.productsClient.connect();
-      this.logger.log('🟢 Conectado con el microservicio de productos');
+      this.logger.log('Products microservice connected');
     } catch (error) {
-      this.logger.error('🔴 Error al conectar con microservicios', error);
+      this.logger.error('Error in conexion', error);
     }
   }
 

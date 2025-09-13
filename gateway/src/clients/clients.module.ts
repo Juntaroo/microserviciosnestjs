@@ -22,14 +22,3 @@ import { envs, USERS_SERVICE } from 'src/configuration';
 export class UsersModule { }
 
 
-
-
-/*import { Module } from '@nestjs/common';
-import { ClientsService } from './clients.service';
-
-@Module({
-  providers: [ClientsService],
-  exports: [ClientsService],
-})
-export class ClientsModule {}
-*/

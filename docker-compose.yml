@@ -1,5 +1,5 @@
 # Archivo: docker-compose.yml
-# Ubicación: raíz del proyecto ITS-Microservice
+# Ubicacion: raíz del proyecto tpgateway
 
 version: '3.9'
 
@@ -148,8 +148,8 @@ services:
       MS_USER_PORT: 3001
       MS_PRODUCTS_HOST: products-ms
       MS_PRODUCTS_PORT: 3002
-      MS_FACTURA_HOST: invoices-ms
-      MS_FACTURA_PORT: 3003
+      MS_INVOICE_HOST: invoices-ms
+      MS_INVOICE_PORT: 3003
     networks:
       - backend
 
