@@ -1,14 +1,13 @@
-
-/*generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-*/
+/**
+ * generator client {
+ * provider = "prisma-client-js"
+ * output   = "../generated/prisma"
+ * }
+ * datasource db {
+ * provider = "postgresql"
+ * url      = env("DATABASE_URL")
+ * }
+ */
 
 generator client {
   provider = "prisma-client-js"
@@ -20,11 +19,24 @@ datasource db {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
-  password String
-  name     String
-  role     String
-  createdAt DateTime @default(now())
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  name      String
+  roles     String[] @default([])
+  createdAt DateTime   @default(now())
   deletedAt DateTime?
+  cartItems CartItem[]
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId]) // para upsert
 }

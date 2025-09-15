@@ -33,4 +33,14 @@ export class ProductsController {
   remove(@Payload() id: number) {
     return this.productsService.remove(id);
   }
+
+   @MessagePattern({ cmd: 'decrease_stock' })
+  decreaseStock(@Payload() payload: { id: number; quantity: number }) {
+    return this.productsService.decreaseStock(payload.id, payload.quantity);
+  }
+
+  @MessagePattern({ cmd: 'restore_stock' })
+  restoreStock(@Payload() payload: { id: number; quantity: number }) {
+    return this.productsService.restoreStock(payload.id, payload.quantity);
+  }
 }

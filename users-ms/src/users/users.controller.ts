@@ -4,6 +4,8 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto } from 'src/common';
+import { firstValueFrom } from 'rxjs';
+import { RpcException } from '@nestjs/microservices';
 
 @Controller('users')
 export class UsersController {
@@ -37,5 +39,22 @@ export class UsersController {
   @MessagePattern({cmd: 'delete_user'} )//Elimina al usuario por id
   remove(@Payload('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  //Carrito: exponer endpoints del microservicio de users
+  @MessagePattern({ cmd: 'add_to_cart' })
+  addToCart(
+    @Payload() payload: { userId: number; productId: number; quantity: number },
+  ) {
+    return this.usersService.addToCart(
+      payload.userId,
+      payload.productId,
+      payload.quantity,
+    );
+  }
+
+  @MessagePattern({ cmd: 'checkout_cart' })
+  checkoutCart(@Payload('userId') userId: number) {
+    return this.usersService.checkoutCart(userId);
   }
 }

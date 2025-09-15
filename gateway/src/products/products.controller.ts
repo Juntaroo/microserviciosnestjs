@@ -8,9 +8,16 @@ import {
   Param,
   HttpException,
   Inject,
+  Query
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { catchError, throwError } from 'rxjs';
+import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
+import { RolesGuard } from 'src/clients/clients.controller';
+import { UseGuards } from '@nestjs/common';
+import { PaginationDto } from 'src/common';
+import { CreateProductDto } from 'src/common/dtos/create-product-dto';
+import { UpdateProductDto } from 'src/common/dtos/update-product-dto';
 
 @Controller('productos')
 export class ProductsController {
@@ -18,30 +25,23 @@ export class ProductsController {
     @Inject('MS_PRODUCTS') private readonly productsClient: ClientProxy,
   ) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard(['ADMIN']))
   @Post()
-  createProduct(@Body() dto: any) {
-    return this.productsClient.send('createProduct', dto).pipe(
-      catchError((err) =>
-        throwError(
-          () =>
-            new HttpException(err?.message ?? 'Error al crear producto', err?.status ?? 500),
-        ),
-      ),
+  createProduct(@Body() createProductDto: CreateProductDto) {
+    return this.productsClient.send('createProduct', createProductDto).pipe(
+      catchError(err => throwError(() => new HttpException(err?.message ?? 'Error al crear producto', err?.status ?? 500))),
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAllProducts() {
-    return this.productsClient.send('findAllProducts', {}).pipe(
-      catchError((err) =>
-        throwError(
-          () =>
-            new HttpException(err?.message ?? 'Error al listar productos', err?.status ?? 500),
-        ),
-      ),
+  findAllProducts(@Query() pagination: PaginationDto) {
+    return this.productsClient.send('findAllProducts', pagination).pipe(
+      catchError(err => throwError(() => new HttpException(err?.message ?? 'Error al listar productos', err?.status ?? 500))),
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsClient.send('findOneProduct', id).pipe(
@@ -54,27 +54,19 @@ export class ProductsController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard(['ADMIN']))
   @Patch(':id')
-  patchProducto(@Param('id') id: string, @Body() dto: any) {
-    return this.productsClient.send('updateProduct', { id, dto }).pipe(
-      catchError((err) =>
-        throwError(
-          () =>
-            new HttpException(err?.message ?? 'Error al actualizar producto', err?.status ?? 500),
-        ),
-      ),
+  patchProduct(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    return this.productsClient.send('updateProduct', { id, dto: updateProductDto }).pipe(
+      catchError(err => throwError(() => new HttpException(err?.message ?? 'Error al actualizar producto', err?.status ?? 500))),
     );
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard(['ADMIN']))
   @Delete(':id')
   removeProduct(@Param('id') id: string) {
     return this.productsClient.send('removeProduct', id).pipe(
-      catchError((err) =>
-        throwError(
-          () =>
-            new HttpException(err?.message ?? 'Error al eliminar producto', err?.status ?? 500),
-        ),
-      ),
+      catchError(err => throwError(() => new HttpException(err?.message ?? 'Error al eliminar producto', err?.status ?? 500))),
     );
   }
 }

@@ -1,16 +1,22 @@
-import { HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto } from 'src/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
+import { CreateInvoiceDto, InvoiceItemDto } from './dto/create-invoice.dto';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService,
+    @Inject('MS_PRODUCT') private readonly productClient: ClientProxy,
+    @Inject('MS_INVOICE') private readonly invoiceClient: ClientProxy,
+  ) {}
 
   //Creo al usuario con contraseña hasheada
   async create(createUserDto: CreateUserDto) {
@@ -64,7 +70,7 @@ export class UsersService {
     return user;
   }
 
-  //Actualizo el usuarioo
+  //Actualizo el usuario
   async update(id: number, updateUserDto: UpdateUserDto) {
     //Si viene password en el DTO, se hashea
     let data = { ...updateUserDto };
@@ -96,4 +102,103 @@ export class UsersService {
       data: { deletedAt: new Date() },
     });
   }
+ async addToCart(userId: number, productId: number, quantity: number) {
+  //Verificar stock del producto en ProductsService
+  const product = await firstValueFrom(
+    this.productClient.send({ cmd: 'find_one_product' }, { id: productId })
+  );
+
+  if (!product) {
+    throw new RpcException({
+      status: 404,
+      message: `Producto con ID ${productId} no encontrado`,
+    });
+  }
+
+  if ((product as any).stock < quantity) {
+    throw new RpcException({
+      status: 400,
+      message: `Stock insuficiente para producto ${productId}`,
+    });
+  }
+
+  //Guardar o actualizar en carrito usando upsert
+  const cartItem = await this.prisma.cartItem.upsert({
+    where: { userId_productId: { userId, productId } },
+    update: { quantity }, // actualizar cantidad si ya existe
+    create: { userId, productId, quantity }, // crear si no existe
+  });
+
+  //Retornar carrito actualizado
+  return cartItem;
+}
+
+   async checkoutCart(userId: number) {
+  //Obtener carrito del usuario
+  const cartItems = await this.prisma.cartItem.findMany({ where: { userId } });
+  if (cartItems.length === 0) {
+    return { message: 'Carrito vacío' };
+  }
+
+  //Validar stock y preparar items de factura
+  const invoiceItems = await Promise.all(
+    cartItems.map(async (item) => {
+      const product = await firstValueFrom(
+        this.productClient.send(
+          { cmd: 'find_one_product' },
+          { id: item.productId }
+        )
+      );
+
+      if (!product || (product as any).stock < item.quantity) {
+        throw new RpcException({
+          status: 400,
+          message: `Stock insuficiente para producto ${item.productId}`,
+        });
+      }
+
+      return {
+        productId: item.productId,
+        descripcion: (product as any).productName,
+        quantity: item.quantity,
+        unitPrice: (product as any).price,
+      };
+    })
+  );
+
+  //Descontar stock en ProductsService
+  for (const item of invoiceItems) {
+    await firstValueFrom(
+      this.productClient.send(
+        { cmd: 'decrease_stock' },
+        { id: item.productId, quantity: item.quantity }
+      )
+    );
+  }
+
+  //Obtener usuario
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new RpcException({ status: 404, message: 'Usuario no encontrado' });
+  }
+
+  //Crear DTO de factura
+  const invoiceDto: CreateInvoiceDto = {
+    numero: `FAC-${Date.now()}`,
+    userId: user.id,
+    total: invoiceItems.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0),
+    items: invoiceItems,
+  };
+
+  //Crear factura en InvoicesService
+  const invoice = await firstValueFrom(
+    this.invoiceClient.send({ cmd: 'create_invoice' }, invoiceDto)
+  );
+
+  //Vaciar carrito
+  await this.prisma.cartItem.deleteMany({ where: { userId } });
+
+  //Devolver factura
+  return invoice;
+}
 }

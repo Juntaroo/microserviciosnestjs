@@ -11,14 +11,14 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
-    // Llamamos al microservicio de usuarios
+    //Llamamos al microservicio de usuarios
     const user = await firstValueFrom(
       this.userClient.send('validateUser', { email, password })
     );
 
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
 
-    return user; // Retornamos el usuario validado
+    return user; //Retornamos el usuario validado
   }
 
   async login(user: any) {
